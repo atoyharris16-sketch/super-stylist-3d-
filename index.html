@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>💖 Super Stylist 3D</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin:0; padding:0; height:100%; overflow:hidden; }
+  body {
+    font-family: ui-rounded, "SF Pro Rounded", "Baloo 2", "Comic Sans MS", "Chalkboard SE", "Segoe UI", sans-serif;
+    background:#ffd9ec; color:#5a3d5c; user-select:none; -webkit-user-select:none;
+  }
+  #stage { position:fixed; inset:0; }
+  #stage canvas { display:block; touch-action:none; }
+
+  /* ---------- top bar ---------- */
+  #topbar {
+    position:fixed; top:10px; left:10px; right:10px;
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    background:rgba(255,255,255,.72); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+    border-radius:24px; padding:8px 12px;
+    box-shadow:0 8px 24px rgba(190,120,180,.25); border:2px solid rgba(255,255,255,.9);
+    z-index:10;
+  }
+  #topbar .title { font-size:20px; font-weight:800; letter-spacing:.5px; white-space:nowrap; }
+  #topbtns { display:flex; gap:6px; }
+  #topbtns button {
+    min-width:48px; min-height:48px; font-size:24px; border:none; border-radius:18px;
+    background:#fff; box-shadow:0 4px 10px rgba(190,120,180,.25); cursor:pointer;
+    display:flex; align-items:center; justify-content:center; padding:0 8px;
+  }
+  #topbtns button:active { transform:scale(.92); }
+  #topbtns button.on { background:#ffd6f0; outline:3px solid #ff8fc7; }
+
+  /* ---------- name plate ---------- */
+  #nameplate {
+    position:fixed; left:50%; transform:translateX(-50%);
+    bottom:calc(300px + 10px); z-index:10;
+    background:linear-gradient(180deg,#fff7fb,#ffe9f4);
+    border:3px solid #ffb3d9; border-radius:20px; padding:6px 14px;
+    box-shadow:0 6px 16px rgba(190,120,180,.3);
+    display:flex; align-items:center; gap:6px;
+  }
+  #nameplate input {
+    border:none; background:transparent; outline:none; text-align:center;
+    font-family:inherit; font-size:18px; font-weight:700; color:#8a4b8f; width:170px;
+  }
+  #nameplate input::placeholder { color:#d9a8c9; font-weight:600; }
+
+  /* ---------- wardrobe tray ---------- */
+  #tray {
+    position:fixed; left:0; right:0; bottom:0; z-index:10;
+    background:rgba(255,255,255,.78); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+    border-radius:28px 28px 0 0; border-top:3px solid rgba(255,255,255,.95);
+    box-shadow:0 -8px 30px rgba(190,120,180,.25);
+    padding:10px 10px calc(10px + env(safe-area-inset-bottom));
+    max-height:44vh; display:flex; flex-direction:column; gap:8px;
+  }
+  #colors { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+  #colors:empty { display:none; }
+  .dot {
+    width:52px; height:52px; border-radius:50%; border:4px solid #fff; cursor:pointer;
+    box-shadow:0 4px 10px rgba(0,0,0,.18); flex:0 0 auto;
+  }
+  .dot.sel { outline:4px solid #ff8fc7; transform:scale(1.12); }
+  #options { display:flex; gap:10px; overflow-x:auto; padding:4px 2px; scrollbar-width:none; }
+  #options::-webkit-scrollbar { display:none; }
+  #options:empty { display:none; }
+  .card {
+    flex:0 0 auto; min-width:84px; min-height:84px; border:none; border-radius:22px;
+    background:#fff; box-shadow:0 5px 14px rgba(190,120,180,.22); cursor:pointer;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+    padding:10px 8px; font-family:inherit;
+  }
+  .card .e { font-size:34px; line-height:1; }
+  .card .l { font-size:13px; font-weight:700; color:#7a4a7d; }
+  .card:active { transform:scale(.93); }
+  .card.sel { outline:4px solid #ff8fc7; background:#ffeef7; }
+  #tabs { display:flex; gap:8px; overflow-x:auto; padding:2px; scrollbar-width:none; }
+  #tabs::-webkit-scrollbar { display:none; }
+  .tab {
+    flex:0 0 auto; min-width:72px; min-height:64px; border:none; border-radius:20px;
+    background:rgba(255,255,255,.65); cursor:pointer; font-family:inherit;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0;
+    padding:8px 6px; box-shadow:0 3px 8px rgba(190,120,180,.15);
+  }
+  .tab .e { font-size:28px; line-height:1.1; }
+  .tab .l { font-size:12px; font-weight:700; color:#7a4a7d; }
+  .tab.sel { background:#ff8fc7; }
+  .tab.sel .l { color:#fff; }
+
+  #nogl {
+    position:fixed; inset:0; z-index:50; display:flex; align-items:center; justify-content:center;
+    background:#ffe9f4; padding:30px; text-align:center; font-size:20px; font-weight:700;
+  }
+  [hidden]{ display:none !important; }
+  @media (max-height:620px){ #nameplate{ display:none; } }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+
+<div id="topbar">
+  <div class="title">💖 Super Stylist 3D</div>
+  <div id="topbtns">
+    <button id="btnSound" title="Sound" aria-label="Sound on or off">🔊</button>
+    <button id="btnSpin" title="Spin" aria-label="Spin the doll">🔄</button>
+    <button id="btnDice" title="Surprise me" aria-label="Surprise me">🎲</button>
+    <button id="btnReset" title="Start over" aria-label="Start over">↺</button>
+    <button id="btnPhoto" title="Save picture" aria-label="Save picture">📸</button>
+  </div>
+</div>
+
+<div id="nameplate">🌸 <input id="dollName" maxlength="16" placeholder="Name your doll…" aria-label="Name your doll"></div>
+
+<div id="tray">
+  <div id="colors"></div>
+  <div id="options"></div>
+  <div id="tabs"></div>
+</div>
+
+<div id="nogl" hidden>😢 Oh no! This game needs 3D.<br>Please open it in a newer browser<br>like Chrome or Safari. 💖</div>
+
+<script type="importmap">
+{"imports":{
+  "three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+/* ============================================================
+   Super Stylist 3D — a dress-up game for little stylists (ages 4-8)
+   Kid-safe interaction: everything is TAP-TO-APPLY. No drag needed,
+   no reading required (emoji + one-word labels), no timers,
+   no fail states, no external links.
+   ============================================================ */
+
+// ---------- tiny helpers ----------
+const $ = s => document.querySelector(s);
+const std = (color, o={}) => new THREE.MeshStandardMaterial(
+  Object.assign({ color, roughness:.65, metalness:.05 }, o));
+function mesh(geo, material, x=0, y=0, z=0){
+  const m = new THREE.Mesh(geo, material);
+  m.position.set(x,y,z); return m;
+}
+const sph = (r,w=24,h=16) => new THREE.SphereGeometry(r,w,h);
+// finish(): shadows on for every mesh in a wardrobe group
+function finish(g){ g.traverse(o=>{ if(o.isMesh){ o.castShadow=true; } }); return g; }
+function clearGroup(g){
+  for(let i=g.children.length-1;i>=0;i--){
+    const c=g.children[i];
+    c.traverse(o=>{ if(o.isMesh && o.geometry) o.geometry.dispose(); });
+    g.remove(c);
+  }
+}
+
+// ---------- pop sound (WebAudio blip, no audio files) ----------
+let audioCtx=null, soundOn=true;
+function pop(){
+  if(!soundOn) return;
+  try{
+    audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)();
+    if(audioCtx.state==='suspended') audioCtx.resume();
+    const t=audioCtx.currentTime;
+    const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+    o.type='sine';
+    o.frequency.setValueAtTime(540,t);
+    o.frequency.exponentialRampToValueAtTime(920,t+0.09);
+    g.gain.setValueAtTime(0.16,t);
+    g.gain.exponentialRampToValueAtTime(0.001,t+0.16);
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(t); o.stop(t+0.17);
+  }catch(e){ /* sound is a nice-to-have */ }
+}
+
+// ---------- renderer / scene / camera ----------
+let renderer;
+try{
+  renderer = new THREE.WebGLRenderer({ antialias:true, preserveDrawingBuffer:true });
+}catch(e){
+  $('#nogl').hidden=false;
+  throw e;
+}
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+$('#stage').appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xffd9ec);
+
+const camera = new THREE.PerspectiveCamera(38, window.innerWidth/window.innerHeight, 0.1, 60);
+camera.position.set(0.4, 1.5, 4.4);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 1.12, 0);      // doll's chest height
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.enablePan = false;           // keep the doll framed
+controls.minDistance = 2.6;
+controls.maxDistance = 6.5;
+controls.minPolarAngle = 0.85;        // don't go under the floor...
+controls.maxPolarAngle = 1.62;        // ...or too far overhead
+controls.autoRotateSpeed = 2.6;       // gentle 360 spin for the 🔄 button
+
+// ---------- lights: one soft key light + pastel fill ----------
+scene.add(new THREE.HemisphereLight(0xfff6fb, 0xe9cfe8, 0.95));
+const key = new THREE.DirectionalLight(0xffffff, 1.15);
+key.position.set(2.6, 4.2, 3.2);
+key.castShadow = true;
+key.shadow.mapSize.set(1024,1024);
+key.shadow.camera.left=-3; key.shadow.camera.right=3;
+key.shadow.camera.top=4;  key.shadow.camera.bottom=-1;
+key.shadow.camera.far=12;
+key.shadow.bias=-0.002;
+scene.add(key);
+const rim = new THREE.DirectionalLight(0xffd6f0, 0.35);
+rim.position.set(-3, 2, -2.5);
+scene.add(rim);
+
+// ---------- ground disc (recolored per scene theme) ----------
+const groundMat = std(0xffb3d9,{ roughness:.9 });
+const ground = mesh(new THREE.CircleGeometry(3.4, 48), groundMat);
+ground.rotation.x = -Math.PI/2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// ============================================================
+// Palettes
+// ============================================================
+const SKINS = [
+  ['#ffdfc4','Peachy'], ['#f7c9a3','Honey'], ['#e0ac69','Tan'],
+  ['#c68642','Golden'], ['#8d5524','Amber'], ['#5c3a21','Cocoa']
+];
+const EYE_COLORS = [
+  ['#6b4226','Brown'], ['#a06a2c','Hazel'], ['#4caf50','Green'],
+  ['#42a5f5','Blue'], ['#9e9e9e','Gray'], ['#9b7bff','Violet'], ['#ff8fb3','Pink']
+];
+const HAIR_COLORS = [
+  ['#2b2b33','Black'], ['#5b3a29','Choco'], ['#a06a3c','Caramel'],
+  ['#f2c14e','Blonde'], ['#d96c2f','Ginger'], ['#ff8fb3','Pink'], ['#9b7bff','Purple']
+];
+
+// ---------- wardrobe state ----------
+const state = {
+  skin:2, eyeStyle:0, eyeColor:3, brow:0,
+  hairStyle:1, hairColor:3,
+  dress:-1, top:0, bottom:0, shoes:0, socks:-1, jewel:-1, extra:-1,
+  theme:0
+};
+
+// ---------- doll root + named wardrobe groups ----------
+const doll = new THREE.Group();
+scene.add(doll);
+const G = {};
+['skin','eyes','brows','hair','top','bottom','dress','shoes','socks','jewel','extra']
+  .forEach(n => { G[n] = new THREE.Group(); G[n].name = n+'Group'; doll.add(G[n]); });
+
+// shared materials so recoloring is instant (no rebuild)
+const skinMat = std(SKINS[state.skin][0]);
+const hairMat = std(HAIR_COLORS[state.hairColor][0], { roughness:.5 });
+hairMat.side = THREE.DoubleSide;
+
+// ============================================================
+// BODY (chibi: big head ~1/3 of height)
+// ============================================================
+const HY = 1.62, HR = 0.42; // head center Y, head radius
+function buildBody(){
+  clearGroup(G.skin);
+  const g = G.skin;
+  g.add(mesh(sph(HR), skinMat, 0, HY, 0));                       // head
+  g.add(mesh(sph(0.07), skinMat, -0.40, HY, 0));                 // ears
+  g.add(mesh(sph(0.07), skinMat,  0.40, HY, 0));
+  g.add(mesh(new THREE.CylinderGeometry(0.09,0.09,0.18,16), skinMat, 0, 1.26, 0)); // neck
+  const torso = mesh(new THREE.CapsuleGeometry(0.22,0.32,6,16), skinMat, 0, 0.98, 0);
+  g.add(torso);
+  const armL = mesh(new THREE.CapsuleGeometry(0.07,0.28,6,12), skinMat, -0.30, 0.98, 0);
+  armL.rotation.z =  0.18;
+  const armR = mesh(new THREE.CapsuleGeometry(0.07,0.28,6,12), skinMat,  0.30, 0.98, 0);
+  armR.rotation.z = -0.18;
+  g.add(armL, armR);
+  g.add(mesh(sph(0.08,16,12), skinMat, -0.345, 0.76, 0));         // hands
+  g.add(mesh(sph(0.08,16,12), skinMat,  0.345, 0.76, 0));
+  g.add(mesh(new THREE.CapsuleGeometry(0.09,0.34,6,12), skinMat, -0.13, 0.42, 0)); // legs
+  g.add(mesh(new THREE.CapsuleGeometry(0.09,0.34,6,12), skinMat,  0.13, 0.42, 0));
+  const footL = mesh(sph(0.10,16,12), skinMat, -0.13, 0.10, 0.05); footL.scale.set(1,0.7,1.35);
+  const footR = mesh(sph(0.10,16,12), skinMat,  0.13, 0.10, 0.05); footR.scale.set(1,0.7,1.35);
+  g.add(footL, footR);
+  // smile
+  const smile = mesh(new THREE.TorusGeometry(0.06,0.013,8,20,Math.PI), std('#b65c6e'), 0, 1.52, 0.385);
+  smile.rotation.z = Math.PI; // ∪ smile
+  g.add(smile);
+  // blush
+  const blushMat = std('#ff9eb0',{ roughness:.8 });
+  const b1 = mesh(sph(0.05,12,10), blushMat, -0.25, 1.56, 0.315); b1.scale.set(1,0.6,0.4);
+  const b2 = mesh(sph(0.05,12,10), blushMat,  0.25, 1.56, 0.315); b2.scale.set(1,0.6,0.4);
+  g.add(b1, b2);
+  finish(g);
+}
+
+// ============================================================
+// EYES — 5 styles, 7 iris colors
+// eyeGroup origin sits on the eye line so blinking (scale.y) pivots correctly
+// ============================================================
+function starShape(R=0.09, r=0.04){
+  const s = new THREE.Shape();
+  for(let i=0;i<10;i++){
+    const a = -Math.PI/2 + i*Math.PI/5, rad = i%2===0 ? R : r;
+    const x = Math.cos(a)*rad, y = Math.sin(a)*rad;
+    i===0 ? s.moveTo(x,y) : s.lineTo(x,y);
+  }
+  s.closePath(); return s;
+}
+function roundEye(irisColor){
+  const e = new THREE.Group();
+  const white = mesh(sph(0.095,20,14), std('#ffffff',{roughness:.25}), 0, 0, 0);
+  white.scale.set(1,1.15,0.6);
+  e.add(white);
+  e.add(mesh(sph(0.048,16,12), std(irisColor,{roughness:.2}), 0, 0.005, 0.055));
+  e.add(mesh(sph(0.022,12,10), std('#2b2b33',{roughness:.2}), 0, 0.005, 0.088));
+  e.add(mesh(sph(0.014,8,8), std('#ffffff',{roughness:.1}), -0.022, 0.035, 0.10)); // sparkle!
+  return e;
+}
+function happyEye(){
+  const e = new THREE.Group();
+  const arc = mesh(new THREE.TorusGeometry(0.075,0.02,8,20,Math.PI), std('#3a2b33'), 0, -0.02, 0);
+  e.add(arc); // ∩ happy closed eye
+  return e;
+}
+function starryEye(irisColor){
+  const e = new THREE.Group();
+  const st = new THREE.Mesh(new THREE.ShapeGeometry(starShape()), std(irisColor,{side:THREE.DoubleSide, roughness:.3}));
+  st.scale.setScalar(1.15); e.add(st);
+  e.add(mesh(sph(0.016,8,8), std('#ffffff'), -0.03, 0.04, 0.012));
+  return e;
+}
+function sleepyEye(){
+  const e = new THREE.Group();
+  const w = mesh(sph(0.09,18,12), std('#ffffff',{roughness:.3}), 0, 0, 0);
+  w.scale.set(1,0.45,0.6); e.add(w);
+  const lash = mesh(new THREE.BoxGeometry(0.17,0.022,0.03), std('#3a2b33'), 0, 0.045, 0.01);
+  e.add(lash);
+  return e;
+}
+function buildEyes(){
+  clearGroup(G.eyes);
+  G.eyes.position.set(0, 1.68, 0);
+  const iris = EYE_COLORS[state.eyeColor][0];
+  const L = new THREE.Group(), R = new THREE.Group();
+  L.position.set(-0.16,0,0.375); R.position.set(0.16,0,0.375);
+  const mk = () => {
+    switch(state.eyeStyle){
+      case 1: return happyEye();
+      case 2: return starryEye(iris);
+      case 3: return sleepyEye();
+      default: return roundEye(iris);
+    }
+  };
+  if(state.eyeStyle===4){ L.add(roundEye(iris)); R.add(happyEye()); } // 😉 wink
+  else { L.add(mk()); R.add(mk()); }
+  G.eyes.add(L,R);
+  finish(G.eyes);
+}
+
+// ============================================================
+// EYEBROWS — 5 styles, auto-match hair color
+// ============================================================
+function browTube(len, lift, thick){
+  const curve = new THREE.QuadraticBezierCurve3(
+    new THREE.Vector3(-len,0,0),
+    new THREE.Vector3(0,lift,0.012),
+    new THREE.Vector3(len,0,0));
+  return new THREE.TubeGeometry(curve, 12, thick, 8);
+}
+function buildBrows(){
+  clearGroup(G.brows);
+  G.brows.position.set(0, 1.875, 0);
+  const mat = std(hairMat.color.getHex(), { roughness:.6 });
+  const defs = [
+    [0.095, 0.045, 0.013],  // soft arc
+    [0.100, 0.006, 0.013],  // straight
+    [0.095, 0.085, 0.013],  // high arch
+    [0.095, 0.045, 0.024],  // thick
+    [0.055, 0.030, 0.011],  // tiny
+  ];
+  const [len,lift,thick] = defs[state.brow];
+  [-0.17, 0.17].forEach(x=>{
+    G.brows.add(mesh(browTube(len,lift,thick), mat, x, 0, 0.30));
+  });
+  finish(G.brows);
+}
+
+// ============================================================
+// HAIR — 6 styles, 7 colors
+// ============================================================
+function hairCap(theta=2.0){
+  const cap = mesh(new THREE.SphereGeometry(0.46,24,16,0,Math.PI*2,0,theta), hairMat, 0, 1.68, -0.03);
+  return cap;
+}
+function tie(x,y,z,color='#ff8fc7'){
+  const t = mesh(new THREE.TorusGeometry(0.05,0.022,8,16), std(color), x, y, z);
+  return t;
+}
+function buildHair(){
+  clearGroup(G.hair);
+  const g = G.hair;
+  const H = state.hairStyle;
+  if(H===0){ // bob
+    g.add(hairCap(2.35));
+    g.add(mesh(sph(0.13,16,12), hairMat, -0.37, 1.44, 0.05));
+    g.add(mesh(sph(0.13,16,12), hairMat,  0.37, 1.44, 0.05));
+  } else if(H===1){ // pigtails
+    g.add(hairCap(1.9));
+    g.add(mesh(sph(0.15,18,14), hairMat, -0.50, 1.52, 0));
+    g.add(mesh(sph(0.15,18,14), hairMat,  0.50, 1.52, 0));
+    g.add(tie(-0.42,1.62,0)); g.add(tie(0.42,1.62,0));
+  } else if(H===2){ // braided pigtails
+    g.add(hairCap(1.9));
+    [-1,1].forEach(s=>{
+      const pts = [
+        [0.40,1.62,0],[0.52,1.44,0.03],[0.45,1.26,0],[0.52,1.08,0.03],[0.46,0.90,0]
+      ].map(p=>new THREE.Vector3(p[0]*s,p[1],p[2]));
+      const curve = new THREE.CatmullRomCurve3(pts);
+      g.add(mesh(new THREE.TubeGeometry(curve,24,0.075,10), hairMat));
+      [0.3,0.58,0.86].forEach((tt,i)=>{
+        const p = curve.getPoint(tt), tan = curve.getTangent(tt);
+        const band = mesh(new THREE.TorusGeometry(0.082,0.02,8,16),
+          std(['#ff8fc7','#ffd166','#9b7bff'][i]), p.x, p.y, p.z);
+        band.lookAt(p.clone().add(tan));
+        g.add(band);
+      });
+      g.add(tie(0.40*s,1.62,0));
+    });
+  } else if(H===3){ // long curls — helix strands framing the face
+    g.add(hairCap(1.9));
+    [-1,1].forEach(side=>{
+      for(let s=0;s<3;s++){
+        const pts=[];
+        for(let i=0;i<=22;i++){
+          const tt=i/22, ang=tt*Math.PI*5 + s*2.1;
+          pts.push(new THREE.Vector3(
+            side*(0.40 + 0.075*Math.cos(ang)) + side*s*0.055,
+            1.62 - tt*1.02,
+            0.10 + 0.07*Math.sin(ang)));
+        }
+        g.add(mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),40,0.05,8), hairMat));
+      }
+    });
+    // back curtain
+    for(let s=0;s<2;s++){
+      const pts=[];
+      for(let i=0;i<=16;i++){
+        const tt=i/16, ang=tt*Math.PI*4 + s*3;
+        pts.push(new THREE.Vector3((s-0.5)*0.3 + 0.06*Math.cos(ang), 1.66-tt*1.05, -0.34+0.06*Math.sin(ang)));
+      }
+      g.add(mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),30,0.05,8), hairMat));
+    }
+  } else if(H===4){ // space buns
+    g.add(hairCap(1.9));
+    [-1,1].forEach(s=>{
+      g.add(mesh(sph(0.17,18,14), hairMat, 0.30*s, 2.08, -0.02));
+      const base = mesh(new THREE.TorusGeometry(0.10,0.032,8,18), std('#ff8fc7'), 0.30*s, 1.96, 0);
+      base.rotation.x = Math.PI/2.4;
+      g.add(base);
+    });
+  } else { // ponytail
+    g.add(hairCap(1.9));
+    const pts = [
+      new THREE.Vector3(0.10,1.98,-0.18), new THREE.Vector3(0.30,1.80,-0.38),
+      new THREE.Vector3(0.42,1.50,-0.42), new THREE.Vector3(0.38,1.18,-0.34)
+    ];
+    g.add(mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),24,0.085,10), hairMat));
+    g.add(tie(0.10,1.96,-0.18,'#ffd166'));
+  }
+  finish(g);
+}
+
+// ============================================================
+// DRESSES (3) — wearing one hides top + bottom
+// ============================================================
+function bodice(color, y=0.98){
+  return mesh(new THREE.CylinderGeometry(0.20,0.24,0.36,20), std(color), 0, y, 0);
+}
+function buildDress(){
+  clearGroup(G.dress);
+  const g = G.dress, i = state.dress;
+  G.top.visible = G.bottom.visible = (i < 0);
+  if(i < 0) return;
+  if(i===0){ // 👸 princess gown
+    g.add(bodice('#ff8fc7'));
+    const skirt = mesh(new THREE.CylinderGeometry(0.24,0.58,0.78,24,1,true),
+      std('#ffb3d9',{side:THREE.DoubleSide}), 0, 0.52, 0);
+    g.add(skirt);
+    const waist = mesh(new THREE.TorusGeometry(0.235,0.028,8,24), std('#ffd166'), 0, 0.86, 0);
+    waist.rotation.x = Math.PI/2; g.add(waist);
+    const gem = mesh(new THREE.OctahedronGeometry(0.045), std('#ff5fa2',{roughness:.15}), 0, 1.02, 0.215);
+    g.add(gem);
+  } else if(i===1){ // 🧜 mermaid
+    g.add(bodice('#4fd1c5'));
+    g.add(mesh(new THREE.CylinderGeometry(0.22,0.30,0.62,20,1,true),
+      std('#4fd1c5',{side:THREE.DoubleSide}), 0, 0.60, 0));
+    const tail = mesh(new THREE.ConeGeometry(0.20,0.34,16), std('#38b2a8'), 0, 0.20, 0);
+    tail.scale.set(1,1,0.45); g.add(tail);
+    const finL = mesh(new THREE.ConeGeometry(0.10,0.22,10), std('#ffd166'), -0.13, 0.08, 0);
+    finL.rotation.z = 1.1; finL.scale.set(1,1,0.4);
+    const finR = finL.clone(); finR.position.x = 0.13; finR.rotation.z = -1.1;
+    g.add(finL, finR);
+  } else { // 🌈 rainbow tutu
+    g.add(bodice('#ffffff'));
+    const cols = ['#ff6b6b','#ffa94d','#ffd166','#69db7c','#4dabf7','#9b7bff'];
+    cols.forEach((c,k)=>{
+      const r = mesh(new THREE.TorusGeometry(0.30+k*0.028, 0.062, 10, 26),
+        std(c,{roughness:.7}), 0, 0.78-k*0.085, 0);
+      r.rotation.x = Math.PI/2; r.scale.set(1,1,0.8);
+      g.add(r);
+    });
+  }
+  finish(g);
+}
+
+// ============================================================
+// TOPS (3) + BOTTOMS (3) — mix and match
+// ============================================================
+function heartShape(){
+  const s = new THREE.Shape();
+  s.moveTo(0,0.05);
+  s.bezierCurveTo(0,0.09,-0.05,0.10,-0.07,0.06);
+  s.bezierCurveTo(-0.09,0.02,-0.05,-0.03,0,-0.06);
+  s.bezierCurveTo(0.05,-0.03,0.09,0.02,0.07,0.06);
+  s.bezierCurveTo(0.05,0.10,0,0.09,0,0.05);
+  return s;
+}
+function topBase(color){ return mesh(new THREE.CapsuleGeometry(0.24,0.34,6,16), std(color), 0, 0.98, 0); }
+function buildTop(){
+  clearGroup(G.top);
+  const g = G.top, i = state.top;
+  if(i===0){ // 💗 heart tee
+    g.add(topBase('#ff7b9c'));
+    const h = new THREE.Mesh(new THREE.ExtrudeGeometry(heartShape(),{depth:0.03,bevelEnabled:false}), std('#ffffff'));
+    h.position.set(0,1.02,0.225); h.scale.setScalar(1.5); g.add(h);
+  } else if(i===1){ // 🌸 flower blouse
+    g.add(topBase('#c3a6ff'));
+    const fz = 0.245;
+    g.add(mesh(sph(0.035,12,10), std('#ffd166'), 0, 1.06, fz));
+    for(let k=0;k<5;k++){
+      const a = k/5*Math.PI*2;
+      g.add(mesh(sph(0.032,12,10), std('#ffffff'), Math.cos(a)*0.062, 1.06+Math.sin(a)*0.062, fz-0.01));
+    }
+  } else { // ⭐ star sweater
+    g.add(topBase('#7bdff2'));
+    const st = new THREE.Mesh(new THREE.ShapeGeometry(starShape(0.09,0.04)), std('#ffd166',{side:THREE.DoubleSide}));
+    st.position.set(0,1.04,0.245); g.add(st);
+  }
+  finish(g);
+}
+function buildBottom(){
+  clearGroup(G.bottom);
+  const g = G.bottom, i = state.bottom;
+  if(i===0){ // 🩰 twirl skirt
+    g.add(mesh(new THREE.CylinderGeometry(0.24,0.44,0.42,24,1,true),
+      std('#f9a8d4',{side:THREE.DoubleSide}), 0, 0.70, 0));
+    const w = mesh(new THREE.TorusGeometry(0.235,0.03,8,24), std('#ff8fc7'), 0, 0.90, 0);
+    w.rotation.x = Math.PI/2; g.add(w);
+  } else if(i===1){ // 👖 denim shorts
+    g.add(mesh(new THREE.CylinderGeometry(0.235,0.25,0.30,20), std('#5b8dd9'), 0, 0.68, 0));
+    g.add(mesh(new THREE.CylinderGeometry(0.115,0.12,0.12,14), std('#4a76b8'), -0.13, 0.50, 0));
+    g.add(mesh(new THREE.CylinderGeometry(0.115,0.12,0.12,14), std('#4a76b8'),  0.13, 0.50, 0));
+  } else { // 🦵 leggings
+    g.add(mesh(new THREE.CapsuleGeometry(0.105,0.36,6,12), std('#9b7bff'), -0.13, 0.40, 0));
+    g.add(mesh(new THREE.CapsuleGeometry(0.105,0.36,6,12), std('#9b7bff'),  0.13, 0.40, 0));
+  }
+  finish(g);
+}
+
+// ============================================================
+// SHOES (6) — drawn over socks
+// ============================================================
+function shoePair(buildOne){
+  const g = new THREE.Group();
+  [-0.13,0.13].forEach(x=>{ const s = buildOne(); s.position.x = x; g.add(s); });
+  return g;
+}
+function buildShoes(){
+  clearGroup(G.shoes);
+  const g = G.shoes, i = state.shoes;
+  const put = grp => { grp.position.y = 0; g.add(grp); };
+  if(i===0){ // 👟 sneakers
+    put(shoePair(()=>{
+      const s = new THREE.Group();
+      s.add(mesh(new THREE.BoxGeometry(0.17,0.07,0.32), std('#ffffff'), 0, 0.045, 0.05));
+      const up = mesh(sph(0.095,16,12), std('#ff6b9d'), 0, 0.10, 0.05); up.scale.set(1,0.75,1.5);
+      s.add(up);
+      s.add(mesh(new THREE.BoxGeometry(0.10,0.03,0.16), std('#ffffff'), 0, 0.155, 0.10));
+      return s;
+    }));
+  } else if(i===1){ // 🥾 boots
+    put(shoePair(()=>{
+      const s = new THREE.Group();
+      s.add(mesh(new THREE.CylinderGeometry(0.105,0.115,0.34,16), std('#8d5524'), 0, 0.26, 0));
+      s.add(mesh(new THREE.BoxGeometry(0.17,0.09,0.32), std('#6f421c'), 0, 0.055, 0.05));
+      return s;
+    }));
+  } else if(i===2){ // 🥿 mary janes
+    put(shoePair(()=>{
+      const s = new THREE.Group();
+      const up = mesh(sph(0.10,16,12), std('#3a3a4a'), 0, 0.09, 0.05); up.scale.set(1,0.7,1.5);
+      s.add(up);
+      const strap = mesh(new THREE.TorusGeometry(0.085,0.018,8,18,Math.PI), std('#ffd166'), 0, 0.13, 0.02);
+      strap.rotation.y = Math.PI/2; s.add(strap);
+      return s;
+    }));
+  } else if(i===3){ // 🩴 sandals
+    put(shoePair(()=>{
+      const s = new THREE.Group();
+      s.add(mesh(new THREE.BoxGeometry(0.16,0.05,0.32), std('#d9a066'), 0, 0.035, 0.05));
+      const st1 = mesh(new THREE.TorusGeometry(0.07,0.016,8,16,Math.PI), std('#ff8fc7'), 0, 0.08, 0.10);
+      st1.rotation.y = Math.PI/2; s.add(st1);
+      const st2 = st1.clone(); st2.position.z = -0.02; s.add(st2);
+      return s;
+    }));
+  } else if(i===4){ // ☔ rain boots
+    put(shoePair(()=>{
+      const s = new THREE.Group();
+      s.add(mesh(new THREE.CylinderGeometry(0.105,0.115,0.44,16), std('#ffd166'), 0, 0.30, 0));
+      s.add(mesh(new THREE.BoxGeometry(0.17,0.09,0.32), std('#f2b73c'), 0, 0.055, 0.05));
+      return s;
+    }));
+  } else { // 🐰 slippers
+    put(shoePair(()=>{
+      const s = new THREE.Group();
+      const up = mesh(sph(0.10,16,12), std('#ffb3d9'), 0, 0.09, 0.05); up.scale.set(1,0.7,1.5);
+      s.add(up);
+      const rimT = mesh(new THREE.TorusGeometry(0.075,0.022,8,18), std('#ffffff'), 0, 0.10, -0.10);
+      rimT.rotation.x = Math.PI/2.2; s.add(rimT);
+      return s;
+    }));
+  }
+  finish(g);
+}
+
+// ============================================================
+// SOCKS (5) — worn UNDER shoes
+// ============================================================
+function sockTube(x, y, h, mat){
+  return mesh(new THREE.CylinderGeometry(0.105,0.10,h,16), mat, x, y, 0);
+}
+function buildSocks(){
+  clearGroup(G.socks);
+  const g = G.socks, i = state.socks;
+  if(i < 0) return;
+  const X = [-0.13, 0.13];
+  if(i===0){ // 🧦 ankle
+    X.forEach(x=>g.add(sockTube(x,0.24,0.20,std('#ffffff'))));
+  } else if(i===1){ // stripy knee-high
+    X.forEach(x=>{
+      for(let k=0;k<5;k++)
+        g.add(sockTube(x, 0.20+k*0.10, 0.10, std(k%2? '#ffffff':'#ff8fc7')));
+    });
+  } else if(i===2){ // rainbow
+    const cols=['#ff6b6b','#ffa94d','#ffd166','#69db7c','#4dabf7','#9b7bff'];
+    X.forEach(x=>cols.forEach((c,k)=>g.add(sockTube(x, 0.17+k*0.085, 0.085, std(c)))));
+  } else if(i===3){ // lacy
+    X.forEach(x=>{
+      g.add(sockTube(x,0.32,0.32,std('#ffffff')));
+      for(let k=0;k<8;k++){
+        const a=k/8*Math.PI*2;
+        g.add(mesh(sph(0.028,10,8), std('#ffe9f4'), x+Math.cos(a)*0.105, 0.48, Math.sin(a)*0.105));
+      }
+    });
+  } else { // ⭐ star socks
+    X.forEach(x=>{
+      g.add(sockTube(x,0.34,0.36,std('#4dabf7')));
+      [0.30,0.42].forEach(y=>{
+        const st = new THREE.Mesh(new THREE.ShapeGeometry(starShape(0.035,0.016)),
+          std('#ffd166',{side:THREE.DoubleSide}));
+        st.position.set(x, y, 0.105); g.add(st);
+      });
+    });
+  }
+  finish(g);
+}
+
+// ============================================================
+// JEWELRY (3) — single select + none
+// ============================================================
+function buildJewel(){
+  clearGroup(G.jewel);
+  const g = G.jewel, i = state.jewel;
+  if(i < 0) return;
+  const gold = std('#ffd166',{roughness:.25, metalness:.6});
+  if(i===0){ // 📿 necklace
+    const ch = mesh(new THREE.TorusGeometry(0.135,0.016,8,24), gold, 0, 1.30, 0.03);
+    ch.rotation.x = Math.PI/2 - 0.25; g.add(ch);
+    g.add(mesh(new THREE.OctahedronGeometry(0.04), std('#ff5fa2',{roughness:.15}), 0, 1.21, 0.155));
+  } else if(i===1){ // 💎 earrings
+    [-1,1].forEach(s=>{
+      g.add(mesh(sph(0.032,12,10), gold, 0.43*s, 1.55, 0.04));
+      g.add(mesh(new THREE.OctahedronGeometry(0.028), std('#9b7bff',{roughness:.15}), 0.43*s, 1.49, 0.04));
+    });
+  } else { // 🌟 charm bracelet
+    const b = mesh(new THREE.TorusGeometry(0.088,0.016,8,20), gold, 0.345, 0.80, 0);
+    b.rotation.x = Math.PI/2; b.rotation.y = 0.18; g.add(b);
+    g.add(mesh(new THREE.BoxGeometry(0.05,0.05,0.02), std('#ff8fc7'), 0.345, 0.72, 0.06));
+  }
+  finish(g);
+}
+
+// ============================================================
+// EXTRAS (5) — single select + none
+// ============================================================
+function buildExtra(){
+  clearGroup(G.extra);
+  const g = G.extra, i = state.extra;
+  if(i < 0) return;
+  if(i===0){ // 👑 tiara
+    const band = mesh(new THREE.TorusGeometry(0.30,0.032,10,26,Math.PI), std('#ffd166',{roughness:.25,metalness:.6}), 0, 1.92, -0.02);
+    band.rotation.x = -0.25; g.add(band);
+    [-0.16,0,0.16].forEach((x,k)=>{
+      const h = k===1?0.16:0.11;
+      g.add(mesh(new THREE.ConeGeometry(0.045,h,10), std('#ff8fc7',{roughness:.2}), x, 2.06+h/2-0.05, -0.02));
+    });
+    g.add(mesh(new THREE.OctahedronGeometry(0.035), std('#ffffff'), 0, 2.18, -0.02));
+  } else if(i===1){ // 🐱 cat ears
+    [-1,1].forEach(s=>{
+      g.add(mesh(new THREE.ConeGeometry(0.095,0.20,12), hairMat, 0.22*s, 2.02, 0));
+      g.add(mesh(new THREE.ConeGeometry(0.05,0.11,10), std('#ff9eb0'), 0.22*s, 2.00, 0.045));
+    });
+  } else if(i===2){ // 🕶️ sunglasses
+    [-1,1].forEach(s=>{
+      const lens = mesh(sph(0.095,16,12), std('#2b2b3a',{roughness:.1}), 0.16*s, 1.68, 0.375);
+      lens.scale.set(1.15,0.85,0.5); g.add(lens);
+    });
+    const bridge = mesh(new THREE.TorusGeometry(0.05,0.018,8,14,Math.PI), std('#2b2b3a'), 0, 1.70, 0.39);
+    g.add(bridge);
+  } else if(i===3){ // 👜 handbag
+    g.add(mesh(new THREE.BoxGeometry(0.24,0.19,0.11), std('#ff8fc7'), 0.50, 0.72, 0.06));
+    const handle = mesh(new THREE.TorusGeometry(0.10,0.02,8,18,Math.PI), std('#d96c8f'), 0.50, 0.83, 0.06);
+    g.add(handle);
+    g.add(mesh(sph(0.03,10,8), std('#ffd166',{metalness:.6,roughness:.25}), 0.50, 0.72, 0.125));
+  } else { // 🧚 fairy wings
+    const wmat = std('#ffd6f5',{transparent:true,opacity:0.5,roughness:.2,side:THREE.DoubleSide});
+    [-1,1].forEach(s=>{
+      const w = mesh(sph(0.24,18,14), wmat, 0.30*s, 1.18, -0.30);
+      w.scale.set(0.9,1.35,0.28); w.rotation.z = -0.35*s; w.rotation.y = 0.4*s;
+      g.add(w);
+      g.add(mesh(sph(0.05,10,8), std('#ffd166'), 0.10*s, 1.05, -0.28));
+    });
+  }
+  finish(g);
+}
+
+// ============================================================
+// SCENES (5) — background + ground + floating decor
+// ============================================================
+const THEMES = [
+  { emoji:'🍬', label:'Candy', bg:0xffd9ec, ground:0xffb3d9, decor:'#ff8fc7', kind:'heart' },
+  { emoji:'🌊', label:'Ocean', bg:0xbfe9ff, ground:0x7fcbe8, decor:'#ffffff', kind:'bubble' },
+  { emoji:'☀️', label:'Meadow', bg:0xd8f3c5, ground:0x8fd694, decor:'#ffd166', kind:'flower' },
+  { emoji:'🌙', label:'Starry', bg:0x1c2340, ground:0x2e3d63, decor:'#ffe066', kind:'star' },
+  { emoji:'🌈', label:'Rainbow', bg:0xe3f4ff, ground:0xbfe3ff, decor:'#ff8fc7', kind:'rainbow' },
+];
+const decorGroup = new THREE.Group();
+scene.add(decorGroup);
+function heartMesh(color, s=0.09){
+  const m = new THREE.Mesh(new THREE.ExtrudeGeometry(heartShape(),{depth:0.03,bevelEnabled:false}),
+    std(color,{roughness:.4}));
+  m.scale.setScalar(s/0.09*1.4); return m;
+}
+function buildScene(){
+  // clear old decor
+  for(let i=decorGroup.children.length-1;i>=0;i--){
+    const c=decorGroup.children[i];
+    c.traverse(o=>{ if(o.isMesh&&o.geometry) o.geometry.dispose(); });
+    decorGroup.remove(c);
+  }
+  const t = THEMES[state.theme];
+  scene.background.setHex(t.bg);
+  groundMat.color.setHex(t.ground);
+  document.body.style.background = '#'+new THREE.Color(t.bg).getHexString();
+  for(let k=0;k<12;k++){
+    let m;
+    if(t.kind==='heart') m = heartMesh(t.decor);
+    else if(t.kind==='star'){
+      m = mesh(new THREE.OctahedronGeometry(0.09), std(t.decor,{emissive:new THREE.Color(t.decor), emissiveIntensity:.45}));
+    }
+    else if(t.kind==='bubble') m = mesh(sph(0.08,14,10), std(t.decor,{transparent:true,opacity:.75,roughness:.1}));
+    else if(t.kind==='flower'){
+      m = new THREE.Group();
+      m.add(mesh(sph(0.035,10,8), std('#ff9d5c')));
+      for(let p=0;p<5;p++){ const a=p/5*Math.PI*2;
+        m.add(mesh(sph(0.035,10,8), std('#ffffff'), Math.cos(a)*0.06, Math.sin(a)*0.06, 0)); }
+    }
+    else { // rainbow: mini rainbows + clouds
+      if(k%2===0){
+        m = new THREE.Group();
+        ['#ff6b6b','#ffa94d','#ffd166','#69db7c','#4dabf7'].forEach((c,ri)=>{
+          const arc = mesh(new THREE.TorusGeometry(0.16-ri*0.028,0.024,8,20,Math.PI), std(c), 0,0,0);
+          m.add(arc);
+        });
+      } else {
+        m = new THREE.Group();
+        m.add(mesh(sph(0.09,12,10), std('#ffffff'), -0.08,0,0));
+        m.add(mesh(sph(0.11,12,10), std('#ffffff'), 0,0.03,0));
+        m.add(mesh(sph(0.09,12,10), std('#ffffff'), 0.08,0,0));
+      }
+    }
+    const a = (k/12)*Math.PI*2 + Math.random()*0.4;
+    const r = 1.9 + Math.random()*0.9;
+    m.position.set(Math.cos(a)*r, 0.5+Math.random()*2.1, Math.sin(a)*r - 0.4);
+    m.userData = { y:m.position.y, p:Math.random()*6.28, s:0.6+Math.random()*0.7 };
+    m.scale.setScalar(m.userData.s);
+    decorGroup.add(m);
+  }
+}
+
+// ============================================================
+// ✨ Sparkle burst on every change
+// ============================================================
+const sparks = [];
+function burst(){
+  const n = 34;
+  const pos = new Float32Array(n*3), vel = [];
+  for(let i=0;i<n;i++){
+    pos[i*3]   = (Math.random()-0.5)*0.4;
+    pos[i*3+1] = 1.0 + Math.random()*0.8;
+    pos[i*3+2] = 0.3 + (Math.random()-0.5)*0.4;
+    vel.push(new THREE.Vector3((Math.random()-0.5)*2.4, 1+Math.random()*2.2, (Math.random()-0.5)*2.4));
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos,3));
+  const p = new THREE.Points(geo, new THREE.PointsMaterial({
+    color:0xffe066, size:0.07, transparent:true, opacity:1, depthWrite:false }));
+  p.userData = { vel, life:0 };
+  scene.add(p); sparks.push(p);
+}
+function tickSparks(dt){
+  for(let i=sparks.length-1;i>=0;i--){
+    const p = sparks[i], u = p.userData;
+    u.life += dt;
+    const arr = p.geometry.attributes.position.array;
+    for(let j=0;j<u.vel.length;j++){
+      const v = u.vel[j];
+      v.y -= 3.2*dt;
+      arr[j*3]+=v.x*dt; arr[j*3+1]+=v.y*dt; arr[j*3+2]+=v.z*dt;
+    }
+    p.geometry.attributes.position.needsUpdate = true;
+    p.material.opacity = Math.max(0, 1 - u.life/0.9);
+    if(u.life > 0.9){
+      scene.remove(p); p.geometry.dispose(); p.material.dispose();
+      sparks.splice(i,1);
+    }
+  }
+}
+
+// ============================================================
+// APPLY — rebuild wardrobe from state
+// ============================================================
+function applyAll(){
+  skinMat.color.set(SKINS[state.skin][0]);
+  hairMat.color.set(HAIR_COLORS[state.hairColor][0]);
+  buildEyes(); buildBrows(); buildHair();
+  buildTop(); buildBottom(); buildDress();
+  buildShoes(); buildSocks(); buildJewel(); buildExtra(); buildScene();
+}
+function change(){ applyAll(); burst(); pop(); }
+
+// ============================================================
+// UI — tabs, option cards, color dots
+// (everything is tap-to-apply: the kid-safe interaction)
+// ============================================================
+const TABS = [
+  { id:'skin',  emoji:'🎨', label:'Skin' },
+  { id:'eyes',  emoji:'👀', label:'Eyes' },
+  { id:'brows', emoji:'🤨', label:'Brows' },
+  { id:'hair',  emoji:'💇', label:'Hair' },
+  { id:'dress', emoji:'👗', label:'Dress' },
+  { id:'top',   emoji:'👚', label:'Tops' },
+  { id:'bottom',emoji:'👖', label:'Bottoms' },
+  { id:'shoes', emoji:'👟', label:'Shoes' },
+  { id:'socks', emoji:'🧦', label:'Socks' },
+  { id:'jewel', emoji:'💎', label:'Jewels' },
+  { id:'extra', emoji:'🎀', label:'Extras' },
+  { id:'scene', emoji:'🌈', label:'Scene' },
+];
+const OPTS = {
+  eyes:   [['👀','Round'],['😊','Happy'],['⭐','Starry'],['😴','Sleepy'],['😉','Wink']],
+  brows:  [['🌈','Soft'],['➖','Straight'],['⛰️','Arched'],['🖌️','Thick'],['✨','Tiny']],
+  hair:   [['💇','Bob'],['🎀','Pigtails'],['🪢','Braids'],['🌀','Curls'],['🎧','Buns'],['🐴','Pony']],
+  dress:  [['🚫','None'],['👸','Princess'],['🧜','Mermaid'],['🌈','Tutu']],
+  top:    [['💗','Heart'],['🌸','Flower'],['⭐','Star']],
+  bottom: [['🩰','Twirl'],['👖','Denim'],['🦵','Leggings']],
+  shoes:  [['👟','Sneakers'],['🥾','Boots'],['🥿','Flats'],['🩴','Sandals'],['☔','Rain'],['🐰','Slippers']],
+  socks:  [['🚫','None'],['🧦','Ankle'],['🦓','Stripy'],['🌈','Rainbow'],['🤍','Lacy'],['⭐','Stars']],
+  jewel:  [['🚫','None'],['📿','Necklace'],['💎','Earrings'],['🌟','Bracelet']],
+  extra:  [['🚫','None'],['👑','Tiara'],['🐱','Kitty'],['🕶️','Shades'],['👜','Bag'],['🧚','Wings']],
+  scene:  THEMES.map(t=>[t.emoji,t.label]),
+};
+const COLOR_ROWS = {
+  skin:  { list:SKINS,  key:'skin' },
+  eyes:  { list:EYE_COLORS, key:'eyeColor' },
+  hair:  { list:HAIR_COLORS, key:'hairColor' },
+};
+const STATE_KEY = { eyes:'eyeStyle', brows:'brow', hair:'hairStyle', dress:'dress', top:'top',
+  bottom:'bottom', shoes:'shoes', socks:'socks', jewel:'jewel', extra:'extra', scene:'theme' };
+
+let activeTab = 'dress';
+
+function renderTabs(){
+  const el = $('#tabs'); el.innerHTML = '';
+  TABS.forEach(t=>{
+    const b = document.createElement('button');
+    b.className = 'tab' + (t.id===activeTab ? ' sel' : '');
+    b.innerHTML = `<span class="e">${t.emoji}</span><span class="l">${t.label}</span>`;
+    b.setAttribute('aria-label', t.label);
+    b.onclick = ()=>{ activeTab = t.id; renderTabs(); renderPanel(); pop(); };
+    el.appendChild(b);
+  });
+}
+function renderPanel(){
+  // color dots
+  const cr = COLOR_ROWS[activeTab];
+  const cEl = $('#colors'); cEl.innerHTML = '';
+  if(cr){
+    cr.list.forEach(([hex],idx)=>{
+      const d = document.createElement('button');
+      d.className = 'dot' + (state[cr.key]===idx ? ' sel' : '');
+      d.style.background = hex;
+      d.setAttribute('aria-label', 'color '+(idx+1));
+      d.onclick = ()=>{ state[cr.key]=idx; change(); renderPanel(); };
+      cEl.appendChild(d);
+    });
+  }
+  // option cards
+  const oEl = $('#options'); oEl.innerHTML = '';
+  (OPTS[activeTab]||[]).forEach(([emoji,label],idx)=>{
+    const key = STATE_KEY[activeTab];
+    const isNoneType = ['dress','socks','jewel','extra'].includes(activeTab);
+    const sel = isNoneType
+      ? (state[key] < 0 ? idx===0 : state[key]===idx-1)
+      : state[key]===idx;
+    const b = document.createElement('button');
+    b.className = 'card' + (sel ? ' sel' : '');
+    b.innerHTML = `<span class="e">${emoji}</span><span class="l">${label}</span>`;
+    b.setAttribute('aria-label', label);
+    b.onclick = ()=>{
+      state[key] = (activeTab==='dress'||activeTab==='socks'||activeTab==='jewel'||activeTab==='extra')
+        ? (idx===0 ? -1 : idx-1) : idx;
+      change(); renderPanel();
+    };
+    oEl.appendChild(b);
+  });
+}
+
+// ---------- top buttons ----------
+$('#btnSound').onclick = e=>{
+  soundOn = !soundOn;
+  e.currentTarget.textContent = soundOn ? '🔊' : '🔇';
+  e.currentTarget.classList.toggle('on', !soundOn);
+  pop();
+};
+$('#btnSpin').onclick = e=>{
+  controls.autoRotate = !controls.autoRotate;
+  e.currentTarget.classList.toggle('on', controls.autoRotate);
+  pop();
+};
+$('#btnDice').onclick = ()=>{
+  const R = n => Math.floor(Math.random()*n);
+  state.skin=R(6); state.eyeStyle=R(5); state.eyeColor=R(7); state.brow=R(5);
+  state.hairStyle=R(6); state.hairColor=R(7);
+  state.dress = Math.random()<0.45 ? R(3) : -1;
+  state.top=R(3); state.bottom=R(3); state.shoes=R(6);
+  state.socks = Math.random()<0.6 ? R(5) : -1;
+  state.jewel = Math.random()<0.5 ? R(3) : -1;
+  state.extra = Math.random()<0.5 ? R(5) : -1;
+  state.theme=R(5);
+  change(); renderPanel();
+};
+$('#btnReset').onclick = ()=>{
+  Object.assign(state, { skin:2, eyeStyle:0, eyeColor:3, brow:0, hairStyle:1, hairColor:3,
+    dress:-1, top:0, bottom:0, shoes:0, socks:-1, jewel:-1, extra:-1, theme:0 });
+  $('#dollName').value = '';
+  change(); renderPanel();
+};
+$('#btnPhoto').onclick = ()=>{
+  renderer.render(scene, camera); // fresh frame into the preserveDrawingBuffer canvas
+  const a = document.createElement('a');
+  const name = ($('#dollName').value.trim() || 'super-stylist').replace(/[^\w\- ]+/g,'');
+  a.download = name + '.png';
+  a.href = renderer.domElement.toDataURL('image/png');
+  a.click();
+  pop(); burst();
+};
+
+// ============================================================
+// Animation — gentle bob + blinking + floating decor
+// ============================================================
+const clock = new THREE.Clock();
+let nextBlink = 2.2, blinkT = -1;
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  const t = clock.elapsedTime;
+
+  doll.position.y = Math.sin(t*1.8)*0.035;         // soft idle bob
+
+  if(t > nextBlink){ blinkT = 0; nextBlink = t + 2.4 + Math.random()*2.2; } // blink ~every 3s
+  if(blinkT >= 0){
+    blinkT += dt;
+    const k = blinkT/0.22;
+    G.eyes.scale.y = k < 0.5 ? Math.max(0.1, 1-k*2*0.9) : Math.min(1, 0.1+(k-0.5)*2*0.9);
+    if(k >= 1){ G.eyes.scale.y = 1; blinkT = -1; }
+  }
+
+  decorGroup.children.forEach(m=>{
+    m.position.y = m.userData.y + Math.sin(t*1.1 + m.userData.p)*0.16;
+    m.rotation.y += dt*0.5;
+  });
+
+  tickSparks(dt);
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+window.addEventListener('resize', ()=>{
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// ---------- go ----------
+buildBody();
+applyAll();
+renderTabs();
+renderPanel();
+animate();
+</script>
+</body>
+</html>
